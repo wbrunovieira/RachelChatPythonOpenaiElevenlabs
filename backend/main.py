@@ -16,3 +16,8 @@ app.add_middleware( CORSMiddleware, allow_origins=origins, allow_credentials=Tru
 async def check_health():
   return {"message": "healthy"}
 
+@app.post("/post-audio/")
+async def post_audio(file: UploadFile = File(...)):
+  print("hey")
+
+
