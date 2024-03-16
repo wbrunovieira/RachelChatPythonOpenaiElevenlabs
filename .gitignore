@@ -1,0 +1,16 @@
+commands.md
+
+# Python
+*.pyc
+__pycache__/
+venv/
+*.egg-info/
+dist/
+build/
+*.egg
+.env
+
+# React
+/node_modules/
+/build/
+.DS_Store
