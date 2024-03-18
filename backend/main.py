@@ -6,6 +6,7 @@ import openai
 
 from functions.openai_requests import convert_audio_to_text, get_chat_response
 from functions.database import store_messages, reset_messages
+from functions.text_to_speech import conver_text_to_speech
 
 app = FastAPI()
 
@@ -37,10 +38,20 @@ async def get_audio():
    
   chat_response = get_chat_response(message_decoded)
   
+  if not chat_response:
+    return HTTPException(status_code=400, detail="Error processing chat response")
+  
   store_messages(message_decoded, chat_response)
   
   print(chat_response)
   
-  return "Done!"
+  audio_output = conver_text_to_speech(chat_response)
+  
+  if not audio_output:
+    return HTTPException(status_code=400, detail="Error converting text to speech")
+  def iterfile():
+    yield audio_output
+  
+  return StreamingResponse(iterfile(), media_type="audio/mpeg")
 
 
