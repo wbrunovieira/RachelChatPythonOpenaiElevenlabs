@@ -1,13 +1,20 @@
 import openai
 from decouple import config
+from io import BytesIO
 
 from functions.database import get_recent_messages
 
 openai.organization = config("OPEN_AI_ORG") 
 openai.api_key = config("OPEN_AI_KEY") 
 
-def convert_audio_to_text(audio_file):
+def convert_audio_to_text(audio_input):
   try:
+    if isinstance(audio_input, bytes):
+            audio_file = BytesIO(audio_input)
+            audio_file.name = 'audio.wav'  
+    else:
+            audio_file = audio_input
+
     transcript = openai.Audio.transcribe("whisper-1", audio_file)
     message_text = transcript['text']
     return message_text

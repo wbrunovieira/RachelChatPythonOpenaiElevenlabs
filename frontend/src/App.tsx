@@ -1,9 +1,16 @@
+import { useState } from "react";
+import Controller from "./components/Controller";
+
 function App() {
-  return (
-    <>
-      <div className='text-lg bg-purple-600'>Mais uma Brunao</div>
-    </>
-  );
+    const [count, setCount] = useState(0);
+
+    return (
+        <div>
+            <>
+                <Controller />
+            </>
+        </div>
+    );
 }
 
 export default App;

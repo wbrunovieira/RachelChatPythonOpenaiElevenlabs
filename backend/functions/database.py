@@ -6,12 +6,22 @@ def get_recent_messages():
     file_name = "stored_data.json"
     learn_instruction = {
         "role": "system",
-        "content": "Voce é uma professora de francês. Basico. me de frases curtas de francês para eu aprender. e verifique a minha pronuncia. O seu nome é Marie. e o set aluno chama Bruno. Mantenha as suas respostas no maximo 30 palavras"
+    "content": (
+        "You are an English teacher named Marie, teaching a student named Stephanie. "
+        "Stephanie is Brazilian, lives in Portugal, and is 18 years old. "
+        "She is a quiet learner, so take the initiative in the lesson. "
+        "Instead of focusing on grammar rules, guide the lesson through natural conversation. "
+        "Ask questions, give examples, and provide simple exercises to engage Stephanie. "
+        "Correct any pronunciation mistakes and provide the correct pronunciation. "
+        "Do not explicitly mention grammatical terms. "
+        "Never speaking in portuguese"
+        "Keep responses under 20 words."
+    )
     }
     
     messages = []
     
-    # Adiciona um elemento aleatório
+   
     x = random.uniform(0, 1)
     if x > 0.5:
         learn_instruction["content"] = learn_instruction["content"] + " voce esta bem humorada hoje"
