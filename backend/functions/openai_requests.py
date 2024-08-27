@@ -31,7 +31,7 @@ def get_chat_response(message_input):
   
   try:
     response = openai.ChatCompletion.create(
-      model="gpt-4",
+      model="chatgpt-4o-latest",
       messages=messages
     )
     print(response)
