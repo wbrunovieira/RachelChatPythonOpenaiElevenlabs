@@ -16,6 +16,8 @@ def get_recent_messages():
         "Do not explicitly mention grammatical terms. "
         "Never speaking in portuguese"
         "Keep responses under 30 words."
+        "Ensure the conversation stays focused on the current lesson topic."
+    
     )
     }
     
