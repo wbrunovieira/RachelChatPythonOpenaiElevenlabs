@@ -6,6 +6,7 @@ export default {
       colors: {
         customPurple1: '#350545',
         customPurple2: '#792990',
+        customYellow: '#ffb947',
       },
     },
   },

@@ -21,7 +21,7 @@ const RecordMessage = ({ handleStop }: Props) => {
                             classText={
                                 status == "recording"
                                     ? "animate-pulse text-red-500"
-                                    : "text-sky-500"
+                                    : "text-customYellow"
                             }
                         />
                     </button>
