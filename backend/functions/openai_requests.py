@@ -2,7 +2,7 @@ import openai
 from decouple import config
 from io import BytesIO
 
-from functions.database import get_recent_messages
+from functions.database import get_recent_messages,store_messages
 
 openai.organization = config("OPEN_AI_ORG") 
 openai.api_key = config("OPEN_AI_KEY") 
@@ -31,11 +31,12 @@ def get_chat_response(message_input):
   
   try:
     response = openai.ChatCompletion.create(
-      model="chatgpt-4o-latest",
+      model="gpt-4o-mini",
       messages=messages
     )
     print(response)
     message_text = response["choices"][0]['message']['content']
+    
     return message_text
   except Exception as e:
     print(e)

@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 
 from functions.openai_requests import convert_audio_to_text, get_chat_response
-from functions.database import store_messages, reset_messages
+from functions.database import store_messages, reset_messages,get_recent_messages
 from functions.text_to_speech import conver_text_to_speech
 
 openai.organization = config("OPEN_AI_ORG")
@@ -61,7 +61,7 @@ def get_last_class_topic():
     except FileNotFoundError:
         return None
     except ValueError:
-        return None  # Caso a leitura do número do tópico falhe
+        return None 
     return None
 
 def suggest_next_topic(last_topic_number):
@@ -137,15 +137,23 @@ async def post_audio(file: UploadFile = File(...)):
         if not message_decoded:
             raise HTTPException(status_code=400, detail="Error decoding audio")
 
+        recent_messages = get_recent_messages()
+
         if first_interaction:
             print("first_interaction ", first_interaction)
             prompt_with_topic = f"Today's topic is: {current_topic}. {message_decoded}"
             chat_response = get_chat_response(prompt_with_topic)
             print("first_interaction chat_response", chat_response)
+            
+            print("first_interaction current_topic", current_topic)
+            print("first_interaction prompt_with_topic", prompt_with_topic)
             first_interaction = False  
         else:
-            chat_response = get_chat_response(message_decoded)
+            context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in recent_messages])
+            prompt_with_topic = f"Today's topic is still: {current_topic}. {message_decoded} and context {context}"
+            chat_response = get_chat_response(prompt_with_topic)
             print("chat_response", chat_response)
+            print("chat_response current_topic", current_topic)
        
 
         if not chat_response:
@@ -189,9 +197,9 @@ async def get_audio():
     if not chat_response:
         return HTTPException(status_code=400, detail="Error processing chat response")
   
-    store_messages(message_decoded, chat_response)
+    stored_message = store_messages(message_decoded, chat_response)
   
-    print(chat_response)
+    print('stored_message',stored_message)
   
     audio_output = conver_text_to_speech(chat_response)
     print("Audio output generated.")

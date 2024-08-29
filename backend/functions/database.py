@@ -1,9 +1,12 @@
 import json
 import random
+import os
 
 def get_recent_messages():
-  
+    print('get_recent_messages')
     file_name = "stored_data.json"
+    messages = []
+
     learn_instruction = {
         "role": "system",
     "content": (
@@ -15,55 +18,98 @@ def get_recent_messages():
         "Correct any pronunciation mistakes and provide the correct pronunciation. "
         "Do not explicitly mention grammatical terms. "
         "Never speaking in portuguese"
-        "Keep responses under 30 words."
-        "Ensure the conversation stays focused on the current lesson topic."
+        "Keep responses under 30 words, concise, and focused on the current lesson topic."
+       
     
     )
     }
     
-    messages = []
-    
+      
    
     x = random.uniform(0, 1)
+
     if x > 0.5:
         learn_instruction["content"] = learn_instruction["content"] + " voce esta bem humorada hoje"
     else:
         learn_instruction["content"] = learn_instruction["content"] + " voce esta mais seria hoje."
         
     messages.append(learn_instruction)
+
+    try:
+        with open(file_name, "r") as file:
+            data = json.load(file)  
+            if isinstance(data, list):  
+                messages = data[-5:]  
+
+    except (FileNotFoundError, json.JSONDecodeError):
+        # If the file doesn't exist or is empty/corrupted, return an empty list
+        return []
     
-    try: 
-        with  open(file_name, "r") as file:
-            data = json.load(file)
-            
-            if len(data) > 5:
-              for item in data:
-                messages.append(item) 
-            else:
-              for item in data[-5:]:
-                messages.append(item) 
-                    
+                  
             
     except Exception as e:
       print(e)
       pass
-    
+    print('get_recent_messages messages',messages)
     return messages   
                
                  
-               
+
+
 def store_messages(request_message, response_message):
-   file_name = "stored_data.json"
-   
-   messages = get_recent_messages()[1:]
-   
-   user_message = {"role": "user", "content": request_message}
-   assistant_message = {"role": "user", "content": response_message}
-   messages.append(user_message)
-   messages.append(assistant_message)
-   
-   with open(file_name, "w") as f:
-       json.dump(messages, f)
+    file_name = "stored_data.json"
+    
+    # Ensure the messages array gets correctly initialized
+    if not os.path.exists(file_name):
+        messages = []
+    else:
+        try: 
+            with open(file_name, "r") as file:
+                data = json.load(file)
+                messages = data if isinstance(data, list) else []
+        except (FileNotFoundError, json.JSONDecodeError):
+            messages = []
+
+    # Prepare new messages
+    user_message = {"role": "user", "content": request_message}
+    assistant_message = {"role": "assistant", "content": response_message}
+    
+    # Append new messages to the list
+    messages.append(user_message)
+    messages.append(assistant_message)
+
+    # Write the updated messages back to the file
+    with open(file_name, "w") as f:
+        json.dump(messages, f)
+    file_name = "stored_data.json"
+    if not os.path.exists(file_name):
+        messages = []
+    messages = []
+
+    try: 
+        with open(file_name, "r") as file:
+            data = json.load(file)  # Load existing messages
+            if isinstance(data, list):  # Ensure that data is a list
+                messages.extend(data[-5:])  # Get last 5 messages
+
+    except FileNotFoundError:
+        pass  # File not found; we'll create it fresh
+    except json.JSONDecodeError:
+        # If the file is empty or corrupted, start from scratch
+        print("Warning: JSON file is corrupted or empty, starting fresh.")
+
+    # Prepare new messages
+    user_message = {"role": "user", "content": request_message}
+    assistant_message = {"role": "assistant", "content": response_message}
+    
+    # Append messages
+    messages.append(user_message)
+    messages.append(assistant_message)
+
+    # Write back to the file
+    with open(file_name, "w") as f:
+        json.dump(messages, f)
        
 def reset_messages():
-  open("stored_data.json", "w")
+  with open("stored_data.json", "w") as file:
+        file.write("")
