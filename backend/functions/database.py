@@ -60,8 +60,10 @@ def get_recent_messages():
 
 def store_messages(request_message, response_message):
     file_name = "stored_data.json"
+    archive_file_name = "conversation_archive.json"
     print("bateu store_messages")
     # Ensure the messages array gets correctly initialized
+    
     if os.path.exists(file_name):
         try:
             with open(file_name, "r") as file:
@@ -71,6 +73,16 @@ def store_messages(request_message, response_message):
             messages = []
     else:
         messages = []
+    
+    if os.path.exists(archive_file_name):
+        try:
+            with open(archive_file_name, "r") as archive_file:
+                archive_data = json.load(archive_file)
+                archive_messages = archive_data if isinstance(archive_data, list) else []
+        except (FileNotFoundError, json.JSONDecodeError):
+            archive_messages = []
+    else:
+        archive_messages = []
 
     
     user_message = {"role": "user", "content": request_message}
@@ -78,11 +90,20 @@ def store_messages(request_message, response_message):
       
     messages.append(user_message)
     messages.append(assistant_message)
+
+    archive_messages.append(user_message)
+    archive_messages.append(assistant_message)
+
     print("store_messages messages",messages)       
+    print("store_messages archive_messages",archive_messages)  
+
     with open(file_name, "w") as f:
         json.dump(messages, f)
-
+    with open(archive_file_name, "w") as archive_f:
+        json.dump(archive_messages, archive_f)
        
 def reset_messages():
   with open("stored_data.json", "w") as file:
+        file.write("")
+  with open("conversation_archive.json", "w") as file:
         file.write("")

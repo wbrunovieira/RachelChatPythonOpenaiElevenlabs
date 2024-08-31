@@ -57,6 +57,36 @@ def get_chat_response(message_input):
     print(e)
     return
 
+def get_chat_response_extended(message_input):
+    """
+    Função para obter uma resposta do modelo GPT-4 sem limite de palavras.
+    """
+    print('get_chat_response_extended message_input', message_input)
+    messages = get_recent_messages()
+    print('get_chat_response_extended get_recent_messages messages', messages)
+    user_message = {"role": "user", "content": f"{message_input}"}
+    messages.append(user_message)
+    print('tudo junto get_chat_response_extended messages', messages)
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=messages
+        )
+        print('response = openai.ChatCompletion', response)
+
+        message_text = response["choices"][0]['message']['content']
+        print('message_text', message_text)
+
+        if not is_english(message_text):
+            raise ValueError("The response is not in English")
+        print('is_english', is_english)
+
+        return message_text
+    except Exception as e:
+        print(e)
+        return
+
 
 def is_english(text):
     try:

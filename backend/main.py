@@ -5,11 +5,12 @@ from decouple import config
 import openai
 import json
 from io import BytesIO 
+import random
 import os
 import time
 from datetime import datetime
 
-from functions.openai_requests import convert_audio_to_text, get_chat_response
+from functions.openai_requests import convert_audio_to_text, get_chat_response,get_chat_response_extended
 from functions.database import store_messages, reset_messages,get_recent_messages,first_message
 from functions.text_to_speech import conver_text_to_speech
 
@@ -18,7 +19,7 @@ openai.api_key = config("OPEN_AI_KEY")
 
 class_start_time = None
 class_duration = 0
-MAX_CLASS_DURATION = 30 * 60  # 1 minuto para testes
+MAX_CLASS_DURATION = 2 * 60  
 first_interaction = True
 
 app = FastAPI()
@@ -99,6 +100,105 @@ def suggest_next_topic(last_topic_number):
     # Se não houver um último tópico ou se estiver no final da lista, retorne o primeiro tópico
     return 1, topics[1]
 
+def get_farewell_message(topic):
+    farewell_messages = [
+    "Great job today, Stephanie! You've made excellent progress. Can't wait to see you next time!",
+    "Another fantastic lesson, Stephanie! Keep up the good work. Looking forward to our next class!",
+    "You did a wonderful job today, Stephanie! Remember the tip about {topic}. See you next time!",
+    "Awesome work today, Stephanie! Keep practicing what we discussed about {topic}. See you soon!",
+    "You've been amazing today, Stephanie! Don’t forget to apply what you learned about {topic}. Until next time!",
+    "Excellent session, Stephanie! I can see your improvement in discussing {topic}. See you in the next class!",
+    "You're doing so well, Stephanie! Keep up the momentum, especially with what we learned about {topic}.",
+    "Fantastic progress today, Stephanie! Let's build on that next time. Enjoy practicing what we covered!",
+    "You really shined in today’s lesson, Stephanie! Don’t forget to revisit our discussion on {topic}.",
+    "Impressive work today, Stephanie! The way you handled {topic} was great. Keep it up!",
+    "Wonderful session, Stephanie! Keep thinking about what we discussed, especially regarding {topic}.",
+    "You’re making great strides, Stephanie! Remember, practice makes perfect with {topic}. See you soon!",
+    "Your dedication is paying off, Stephanie! Keep the enthusiasm high as you practice {topic}.",
+    "You’ve got this, Stephanie! Your efforts today with {topic} were outstanding. Keep going!",
+    "Another solid lesson in the books, Stephanie! Keep reflecting on {topic} until our next session.",
+    "You’re becoming more confident every day, Stephanie! Today’s work on {topic} was particularly strong.",
+    "Bravo, Stephanie! Today you made real progress on {topic}. Keep the practice going!",
+    "You're doing amazing, Stephanie! Let's take what we learned about {topic} and keep moving forward.",
+    "Great work today, Stephanie! Remember, the more you practice {topic}, the easier it will become.",
+    "You're on the right track, Stephanie! Keep thinking about {topic}, and we'll explore more next time.",
+    "Today was a big step forward, Stephanie! Reflect on what we discussed about {topic} until we meet again.",
+    "Your hard work is really showing, Stephanie! The way you tackled {topic} was impressive. See you next time!",
+    "Keep up the excellent work, Stephanie! I was especially impressed with your progress on {topic}.",
+    "You’re doing such a great job, Stephanie! Today’s work on {topic} was top-notch. Keep practicing!",
+    "Fantastic effort today, Stephanie! Let’s keep building on what we discussed about {topic}.",
+    "You're growing with each lesson, Stephanie! Keep applying what you learned about {topic} in your practice.",
+    "Another great session, Stephanie! Your understanding of {topic} is improving steadily. See you soon!",
+    "You're really getting the hang of this, Stephanie! Today’s work on {topic} was a highlight. Well done!",
+    "You’ve made a lot of progress today, Stephanie! Keep up the great work, especially with {topic}.",
+    "I’m proud of your progress, Stephanie! Keep focusing on {topic} until our next class. You’re doing great!"
+]
+
+
+   
+    farewell_message = random.choice(farewell_messages)
+    
+    # Inserir o tópico atual na mensagem, se necessário
+    farewell_message = farewell_message.format(topic=topic)
+    
+    return farewell_message
+
+def stop_class_and_generate_reports(current_topic,current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file="conversation_archive.json"):
+    if current_duration >= MAX_CLASS_DURATION:
+        stop_timer_and_log(current_topic_number)
+
+        
+        if os.path.exists(conversation_archive_file):
+            with open(conversation_archive_file, "r") as archive_file:
+                conversation_data = json.load(archive_file)
+            
+            
+            prompt_summary = (
+                f"Summarize the following conversation as an English class session. "
+                f"Highlight the main points covered, suggest improvements, and offer praise. "
+                f"Then, conclude with a friendly farewell message. Conversation: {conversation_data}"
+            )
+            summary_response = get_chat_response_extended(prompt_summary)
+            summary_audio = conver_text_to_speech(summary_response)
+
+        else:
+            summary_audio = conver_text_to_speech("The conversation archive file could not be found.")
+
+      
+        prompt_critique = (
+            f"As a super expert in English teaching, critique the following class session. "
+            f"Provide detailed feedback on teaching techniques, lesson structure, and student engagement. "
+            f"Offer specific suggestions for improvement. This report is for the app developer. "
+            f"Conversation: {conversation_data}"
+        )
+        critique_response = get_chat_response(prompt_critique)
+        critique_file_name = "developer_feedback.txt"
+        with open(critique_file_name, "w") as critique_file:
+            critique_file.write(critique_response)
+
+        prompt_detailed_feedback = (
+    f"As an expert in English language teaching, thoroughly analyze each sentence from the following conversation. "
+    f"Provide detailed feedback on pronunciation, grammar, and vocabulary, highlighting both strengths and areas for improvement. "
+    f"For each area of improvement, offer specific and actionable suggestions for the student to practice, including example sentences and recommended exercises. "
+    f"Additionally, provide targeted exercises or practice activities to reinforce learning and correct any identified weaknesses. "
+    f"Here is the conversation: {conversation_data}"
+)
+
+
+        detailed_feedback_response = get_chat_response_extended(prompt_detailed_feedback)
+        detailed_feedback_file_name = "student_feedback.txt"
+        with open(detailed_feedback_file_name, "w") as feedback_file:
+            feedback_file.write(detailed_feedback_response)
+
+        
+        farewell_message = get_farewell_message(current_topic)  
+        final_audio_content = conver_text_to_speech(farewell_message)
+
+        
+        combined_audio = BytesIO(summary_audio + final_audio_content)
+        print("current_duration m", current_duration)
+        return StreamingResponse(combined_audio, media_type="audio/mpeg")
+    
 origins = [
     "http://localhost:5173",
     "http://localhost:5174",
@@ -133,7 +233,7 @@ async def post_audio(file: UploadFile = File(...)):
         
         audio_input = await file.read()
 
-        # Decodifica o áudio em texto
+      
         message_decoded = convert_audio_to_text(audio_input)
         print("Decoded message:", message_decoded)
 
@@ -169,11 +269,7 @@ async def post_audio(file: UploadFile = File(...)):
         print("current_duration m", current_duration)
         
         if current_duration >= MAX_CLASS_DURATION:
-            stop_timer_and_log(current_topic_number)  
-            end_message = "Great job today, Stephanie! We've reached our time limit for the class. See you next time!"
-            audio_content = conver_text_to_speech(end_message)
-            print("current_duration m", current_duration)
-            return StreamingResponse(BytesIO(audio_content), media_type="audio/mpeg")
+            return stop_class_and_generate_reports(current_topic, current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file="conversation_archive.json")
 
        
         audio_content = conver_text_to_speech(chat_response)
