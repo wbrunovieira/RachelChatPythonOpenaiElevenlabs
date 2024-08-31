@@ -2,11 +2,10 @@ import json
 import random
 import os
 
-def get_recent_messages():
+def first_message():
     print('entrou get_recent_messages')
     file_name = "stored_data.json"
     messages = []
-
     learn_instruction = {
         "role": "system",
         "content": (
@@ -18,18 +17,31 @@ def get_recent_messages():
             "Keep responses under 30 words, concise, and relevant to the current lesson topic."
     )
     }
-    
-        
     x = random.uniform(0, 1)
 
     if x > 0.5:
         learn_instruction["content"] = learn_instruction["content"] + " good mood class"
     else:
         learn_instruction["content"] = learn_instruction["content"] + " focused class"
-        
-    messages.append(learn_instruction)
-    print('depois de verificou o humor messages',messages)
+        if os.path.exists(file_name):
+            try:
+                with open(file_name, "r") as file:
+                    data = json.load(file)
+                    if isinstance(data, list):
+                        messages.extend(data[-5:])  
+            except (FileNotFoundError, json.JSONDecodeError):
+                print("Arquivo não encontrado ou JSON corrompido. Criando novo arquivo.")
+        else:
+            print("Arquivo não encontrado. Criando novo arquivo.")
 
+        print('get_recent_messages messages final',messages)    
+    messages.append(learn_instruction)
+    return messages 
+
+def get_recent_messages():
+    print('entrou get_recent_messages')
+    file_name = "stored_data.json"
+    messages = []
     if os.path.exists(file_name):
         try:
             with open(file_name, "r") as file:

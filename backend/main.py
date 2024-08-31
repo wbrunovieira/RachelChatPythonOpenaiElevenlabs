@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 
 from functions.openai_requests import convert_audio_to_text, get_chat_response
-from functions.database import store_messages, reset_messages,get_recent_messages
+from functions.database import store_messages, reset_messages,get_recent_messages,first_message
 from functions.text_to_speech import conver_text_to_speech
 
 openai.organization = config("OPEN_AI_ORG")
@@ -145,7 +145,8 @@ async def post_audio(file: UploadFile = File(...)):
 
         if first_interaction:
             print("first_interaction ", first_interaction)
-            prompt_with_topic = f"Please start the lesson by greeting Stephanie and introducing the topic {current_topic}. After that, continue with the {message_decoded}"
+            first_message_message = first_message()
+            prompt_with_topic = f"{first_message_message} Please start the lesson by greeting Stephanie and introducing the topic {current_topic}. After that, continue with the {message_decoded}"
             print("prompt_with_topic no first", prompt_with_topic)
             chat_response = get_chat_response(prompt_with_topic)
             print("first_interaction chat_response", chat_response)
@@ -154,11 +155,8 @@ async def post_audio(file: UploadFile = File(...)):
             print("first_interaction prompt_with_topic", prompt_with_topic)
             first_interaction = False  
         else:
-            recent_messages = get_recent_messages()
-            print("no main recent_messages", recent_messages)
-            context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in recent_messages])
-            prompt_with_topic = f"Today's topic is still: {current_topic}. {message_decoded} and context {context}"
-            chat_response = get_chat_response(prompt_with_topic)
+            prompt = f"Continue the conversation based on Stephanie's message: {message_decoded}. Ask a follow-up question to keep the dialogue going."
+            chat_response = get_chat_response(prompt)
             store_messages(message_decoded, chat_response)
             print("chat_response", chat_response)
             print("chat_response current_topic", current_topic)
@@ -177,21 +175,20 @@ async def post_audio(file: UploadFile = File(...)):
             print("current_duration m", current_duration)
             return StreamingResponse(BytesIO(audio_content), media_type="audio/mpeg")
 
-        # Converte a resposta do chat em áudio
+       
         audio_content = conver_text_to_speech(chat_response)
 
         if not audio_content:
             raise HTTPException(status_code=500, detail="Erro ao converter texto para fala")
         
-        # Retorna o áudio gerado como resposta
+        
         return StreamingResponse(BytesIO(audio_content), media_type="audio/mpeg")
 
     except Exception as e:
         print(f"Error processing audio: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/get-audio/")
-async def get_audio():
+
     audio_input  = open("teste.mp3", "rb")
     message_decoded = convert_audio_to_text(audio_input)
     print("Decoded message:", message_decoded)
