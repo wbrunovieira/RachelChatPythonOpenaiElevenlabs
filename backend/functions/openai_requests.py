@@ -1,6 +1,7 @@
 import openai
 from decouple import config
 from io import BytesIO
+from langdetect import detect
 
 from functions.database import get_recent_messages,store_messages
 
@@ -23,21 +24,43 @@ def convert_audio_to_text(audio_input):
     return
   
 def get_chat_response(message_input):
-  
+  print('get_chat_response message_input',message_input)
   messages = get_recent_messages()
-  user_message = {"role": "user", "content": message_input} 
+  print('get_chat_response get_recent_messages messages',messages)
+  user_message = {"role": "user", "content": f"Respond in English, in less than 30 words: {message_input}"} 
   messages.append(user_message)
+  print('tudo junto get_chat_response messages',messages)
  
   
   try:
     response = openai.ChatCompletion.create(
-      model="gpt-4o-mini",
+      model="gpt-4o",
       messages=messages
     )
-    print(response)
+    print('response = openai.ChatCompletion',response)
+
     message_text = response["choices"][0]['message']['content']
+    print('message_text',message_text)
+
+    if not is_english(message_text):
+            raise ValueError("The response is not in English")
+    print('is_english',is_english)
+
+    word_count = len(message_text.split())
+    print('word_count',word_count)
+
+    if word_count > 30:
+            message_text = ' '.join(message_text.split()[:30]) + "..."
     
     return message_text
   except Exception as e:
     print(e)
     return
+
+
+def is_english(text):
+    try:
+        lang = detect(text)
+        return lang == 'en'
+    except:
+        return False

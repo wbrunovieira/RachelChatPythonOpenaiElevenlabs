@@ -3,7 +3,9 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from decouple import config
 import openai
+import json
 from io import BytesIO 
+import os
 import time
 from datetime import datetime
 
@@ -115,6 +117,7 @@ async def reset_conversation():
 
 @app.post("/post-audio/")
 async def post_audio(file: UploadFile = File(...)):
+   
     global first_interaction
     
     try:
@@ -138,20 +141,25 @@ async def post_audio(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Error decoding audio")
 
         recent_messages = get_recent_messages()
+        print("no main recent_messages", recent_messages)
 
         if first_interaction:
             print("first_interaction ", first_interaction)
-            prompt_with_topic = f"Today's topic is: {current_topic}. {message_decoded}"
+            prompt_with_topic = f"Please start the lesson by greeting Stephanie and introducing the topic {current_topic}. After that, continue with the {message_decoded}"
+            print("prompt_with_topic no first", prompt_with_topic)
             chat_response = get_chat_response(prompt_with_topic)
             print("first_interaction chat_response", chat_response)
-            
+            store_messages(message_decoded, chat_response)
             print("first_interaction current_topic", current_topic)
             print("first_interaction prompt_with_topic", prompt_with_topic)
             first_interaction = False  
         else:
+            recent_messages = get_recent_messages()
+            print("no main recent_messages", recent_messages)
             context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in recent_messages])
             prompt_with_topic = f"Today's topic is still: {current_topic}. {message_decoded} and context {context}"
             chat_response = get_chat_response(prompt_with_topic)
+            store_messages(message_decoded, chat_response)
             print("chat_response", chat_response)
             print("chat_response current_topic", current_topic)
        
