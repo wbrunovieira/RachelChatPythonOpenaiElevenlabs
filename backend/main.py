@@ -19,7 +19,8 @@ openai.api_key = config("OPEN_AI_KEY")
 
 class_start_time = None
 class_duration = 0
-MAX_CLASS_DURATION = 2 * 60  
+MAX_CLASS_DURATION = 1 * 60 
+MAX_READING_TIME = 15 * 60  
 first_interaction = True
 
 app = FastAPI()
@@ -66,6 +67,24 @@ def get_last_class_topic():
     except ValueError:
         return None 
     return None
+
+def generate_reading_text(topic):
+    prompt = (
+        f"Generate a reading passage for a student learning English. The passage should be related to the topic '{topic}' "
+        "and should be of medium difficulty, suitable for an intermediate learner. The text should be engaging and contain a variety of vocabulary."
+    )
+    response = get_chat_response(prompt)
+    return response
+
+def analyze_reading_comprehension(original_text, student_audio):
+    student_text = convert_audio_to_text(student_audio)
+        
+    original_words = set(original_text.split())
+    student_words = set(student_text.split())
+    
+    missed_words = original_words - student_words
+    
+    return missed_words
 
 def suggest_next_topic(last_topic_number):
     topics = {
@@ -134,17 +153,15 @@ def get_farewell_message(topic):
     "I’m proud of your progress, Stephanie! Keep focusing on {topic} until our next class. You’re doing great!"
 ]
 
-
    
     farewell_message = random.choice(farewell_messages)
     
-    # Inserir o tópico atual na mensagem, se necessário
-    farewell_message = farewell_message.format(topic=topic)
-    
+     
     return farewell_message
 
-def stop_class_and_generate_reports(current_topic,current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file="conversation_archive.json"):
+def stop_class_and_generate_reports(current_topic,current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file):
     if current_duration >= MAX_CLASS_DURATION:
+        current_date = datetime.now().strftime("%d_%m_%Y")
         stop_timer_and_log(current_topic_number)
 
         
@@ -154,11 +171,12 @@ def stop_class_and_generate_reports(current_topic,current_topic_number, current_
             
             
             prompt_summary = (
-                f"Summarize the following conversation as an English class session. "
-                f"Highlight the main points covered, suggest improvements, and offer praise. "
-                f"Then, conclude with a friendly farewell message. Conversation: {conversation_data}"
-            )
-            summary_response = get_chat_response_extended(prompt_summary)
+    f"Summarize the following conversation as an English class session in a way that can be easily understood when read aloud as an audio recording. "
+    f"Highlight the main points covered, suggest improvements, and offer praise in a conversational and natural tone. "
+    f"Please avoid using bullet points or lists, and instead, present the information in full sentences."
+)
+            summary_response = get_chat_response(prompt_summary)
+            print('summary_response',summary_response)
             summary_audio = conver_text_to_speech(summary_response)
 
         else:
@@ -171,8 +189,9 @@ def stop_class_and_generate_reports(current_topic,current_topic_number, current_
             f"Offer specific suggestions for improvement. This report is for the app developer. "
             f"Conversation: {conversation_data}"
         )
-        critique_response = get_chat_response(prompt_critique)
-        critique_file_name = "developer_feedback.txt"
+        critique_response = get_chat_response_extended(prompt_critique)
+
+        critique_file_name = f"developer_feedback_{current_date}.txt"
         with open(critique_file_name, "w") as critique_file:
             critique_file.write(critique_response)
 
@@ -186,7 +205,7 @@ def stop_class_and_generate_reports(current_topic,current_topic_number, current_
 
 
         detailed_feedback_response = get_chat_response_extended(prompt_detailed_feedback)
-        detailed_feedback_file_name = "student_feedback.txt"
+        detailed_feedback_file_name = f"student_feedback_{current_date}.txt"
         with open(detailed_feedback_file_name, "w") as feedback_file:
             feedback_file.write(detailed_feedback_response)
 
@@ -219,6 +238,7 @@ async def reset_conversation():
 async def post_audio(file: UploadFile = File(...)):
    
     global first_interaction
+    current_date = datetime.now().strftime("%d_%m_%Y")
     
     try:
         start_timer()
@@ -266,10 +286,17 @@ async def post_audio(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Error processing chat response")
 
         current_duration = calculate_duration()
+
         print("current_duration m", current_duration)
+        conversation_archive_file = f"conversation_archive_{current_date}.json"
+
+        if current_duration >= MAX_READING_TIME and current_duration < MAX_CLASS_DURATION:
+            reading_text = generate_reading_text(current_topic)
+            store_messages("Reading Text", reading_text)
+            return {"message": "Please read the following text aloud:", "text": reading_text}
         
         if current_duration >= MAX_CLASS_DURATION:
-            return stop_class_and_generate_reports(current_topic, current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file="conversation_archive.json")
+            return stop_class_and_generate_reports(current_topic, current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file)
 
        
         audio_content = conver_text_to_speech(chat_response)

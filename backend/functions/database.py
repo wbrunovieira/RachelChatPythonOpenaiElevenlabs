@@ -1,6 +1,7 @@
 import json
 import random
 import os
+from datetime import datetime
 
 def first_message():
     print('entrou get_recent_messages')
@@ -60,9 +61,10 @@ def get_recent_messages():
 
 def store_messages(request_message, response_message):
     file_name = "stored_data.json"
-    archive_file_name = "conversation_archive.json"
+    current_date = datetime.now().strftime("%d_%m_%Y")
+    archive_file_name = f"conversation_archive_{current_date}.json"
     print("bateu store_messages")
-    # Ensure the messages array gets correctly initialized
+   
     
     if os.path.exists(file_name):
         try:

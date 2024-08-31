@@ -6,6 +6,7 @@ import RecordMessage from "./RecordMessage";
 const Controller = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
+    const [textToDisplay, setTextToDisplay] = useState<string | null>(null);
 
     function createBlobURL(data: any) {
         console.log("Creating blob URL...");
