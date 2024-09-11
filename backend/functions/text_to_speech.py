@@ -14,7 +14,7 @@ def conver_text_to_speech(message):
     
     message = summarize_text_if_needed(message)
 
-    url = "https://api.elevenlabs.io/v1/text-to-speech/IKne3meq5aSn9XLyUdCD"  
+    url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"  
 
     headers = {
         "Accept": "audio/mpeg",
