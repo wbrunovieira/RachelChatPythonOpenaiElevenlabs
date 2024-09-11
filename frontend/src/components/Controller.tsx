@@ -62,7 +62,6 @@ const Controller = () => {
                 messagesArr
             );
 
-            // Play audio
             setIsLoading(false);
             console.log("Playing audio...");
             audio.play();
@@ -74,11 +73,9 @@ const Controller = () => {
 
     return (
         <div className="h-screen overflow-y-hidden">
-            {/* Title */}
             <Title setMessages={setMessages} />
 
             <div className="flex flex-col justify-between h-full overflow-y-scroll pb-96">
-                {/* Conversation */}
                 <div className="mt-5 px-5">
                     {messages?.map((audio, index) => {
                         return (
@@ -90,7 +87,6 @@ const Controller = () => {
                                         "flex items-end")
                                 }
                             >
-                                {/* Sender */}
                                 <div className="mt-4 ">
                                     <p
                                         className={
@@ -102,7 +98,6 @@ const Controller = () => {
                                         {audio.sender}
                                     </p>
 
-                                    {/* Message */}
                                     <audio
                                         src={audio.blobUrl}
                                         className="appearance-none"
@@ -129,7 +124,7 @@ const Controller = () => {
                 {/* Recorder */}
                 <div className="fixed bottom-0 w-full py-6 border-t text-center bg-gradient-to-r from-customPurple1 to-customPurple2">
                     <div className="flex justify-center items-center w-full">
-                        <div>
+                        <div className="duration-300 text-customYellow hover:scale-105">
                             <RecordMessage handleStop={handleStop} />
                         </div>
                     </div>

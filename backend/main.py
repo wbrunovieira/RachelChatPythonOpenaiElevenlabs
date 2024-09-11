@@ -19,7 +19,7 @@ openai.api_key = config("OPEN_AI_KEY")
 
 class_start_time = None
 class_duration = 0
-MAX_CLASS_DURATION = 1 * 60 
+MAX_CLASS_DURATION = 10 * 60 
 MAX_READING_TIME = 15 * 60  
 first_interaction = True
 
@@ -116,7 +116,7 @@ def suggest_next_topic(last_topic_number):
             print('next_topic_number',next_topic_number)
             return next_topic_number, topics[next_topic_number]
     print('topics',topics[1])
-    # Se não houver um último tópico ou se estiver no final da lista, retorne o primeiro tópico
+
     return 1, topics[1]
 
 def get_farewell_message(topic):
@@ -264,9 +264,12 @@ async def post_audio(file: UploadFile = File(...)):
         print("no main recent_messages", recent_messages)
 
         if first_interaction:
-            print("first_interaction ", first_interaction)
+            print("first_interaction e primeira interacao", first_interaction)
             first_message_message = first_message()
-            prompt_with_topic = f"{first_message_message} Please start the lesson by greeting Stephanie and introducing the topic {current_topic}. After that, continue with the {message_decoded}"
+            prompt_with_topic = (
+            f"{first_message_message} You are now in a situation where the topic is '{current_topic}'. "
+            f"Begin the conversation naturally with Stephanie based on this topic, and continue with her message: '{message_decoded}'"
+    )
             print("prompt_with_topic no first", prompt_with_topic)
             chat_response = get_chat_response(prompt_with_topic)
             print("first_interaction chat_response", chat_response)
@@ -275,7 +278,12 @@ async def post_audio(file: UploadFile = File(...)):
             print("first_interaction prompt_with_topic", prompt_with_topic)
             first_interaction = False  
         else:
-            prompt = f"Continue the conversation based on Stephanie's message: {message_decoded}. Ask a follow-up question to keep the dialogue going."
+            prompt = (
+    f"Continue the conversation based on Stephanie's message: '{message_decoded}'. "
+    "If there is any ambiguity or confusion, gently ask for clarification. "
+    "Focus on keeping the conversation natural and flowing, while ensuring you understood her correctly. "
+    "Ask a follow-up question to keep the dialogue going."
+)
             chat_response = get_chat_response(prompt)
             store_messages(message_decoded, chat_response)
             print("chat_response", chat_response)
@@ -290,10 +298,10 @@ async def post_audio(file: UploadFile = File(...)):
         print("current_duration m", current_duration)
         conversation_archive_file = f"conversation_archive_{current_date}.json"
 
-        if current_duration >= MAX_READING_TIME and current_duration < MAX_CLASS_DURATION:
-            reading_text = generate_reading_text(current_topic)
-            store_messages("Reading Text", reading_text)
-            return {"message": "Please read the following text aloud:", "text": reading_text}
+        # if current_duration >= MAX_READING_TIME and current_duration < MAX_CLASS_DURATION:
+        #     reading_text = generate_reading_text(current_topic)
+        #     store_messages("Reading Text", reading_text)
+        #     return {"message": "Please read the following text aloud:", "text": reading_text}
         
         if current_duration >= MAX_CLASS_DURATION:
             return stop_class_and_generate_reports(current_topic, current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file)
