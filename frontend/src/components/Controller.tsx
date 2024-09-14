@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import Title from "./Title";
 import RecordMessage from "./RecordMessage";
@@ -6,7 +6,25 @@ import RecordMessage from "./RecordMessage";
 const Controller = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
+    const [currentTopic, setCurrentTopic] = useState<string>("");
+
     const [textToDisplay, setTextToDisplay] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchCurrentTopic = async () => {
+            try {
+                const res = await axios.get(
+                    "http://localhost:8000/current-topic"
+                );
+                console.log("Current topic:", res.data.current_topic);
+                setCurrentTopic(res.data.current_topic);
+            } catch (err) {
+                console.error("Error fetching current topic:", err);
+            }
+        };
+
+        fetchCurrentTopic();
+    }, []);
 
     function createBlobURL(data: any) {
         console.log("Creating blob URL...");
@@ -74,6 +92,13 @@ const Controller = () => {
     return (
         <div className="h-screen overflow-y-hidden">
             <Title setMessages={setMessages} />
+
+            {/* Exibir o currentTopic */}
+            {currentTopic && (
+                <div className="text-center font-bold text-xl mt-4">
+                    Current Topic: {currentTopic}
+                </div>
+            )}
 
             <div className="flex flex-col justify-between h-full overflow-y-scroll pb-96">
                 <div className="mt-5 px-5">

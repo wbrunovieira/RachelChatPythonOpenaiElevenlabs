@@ -22,6 +22,8 @@ class_duration = 0
 MAX_CLASS_DURATION = 10 * 60 
 MAX_READING_TIME = 15 * 60  
 first_interaction = True
+current_topic_number = None  
+current_topic = None 
 
 app = FastAPI()
 
@@ -227,9 +229,19 @@ origins = [
 
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
 
+@app.get("/current-topic")
+async def get_current_topic():
+    global current_topic_number, current_topic
+    if current_topic is None:
+        
+        last_topic_number = get_last_class_topic()
+        current_topic_number, current_topic = suggest_next_topic(last_topic_number)
+    return {"current_topic": current_topic}
+
 @app.get("/reset")
 async def reset_conversation():
-    global first_interaction
+    global first_interaction, current_topic_number, current_topic
+    
     first_interaction = True 
     reset_messages()
     return {"message": "conversation reset"}
@@ -237,7 +249,8 @@ async def reset_conversation():
 @app.post("/post-audio/")
 async def post_audio(file: UploadFile = File(...)):
    
-    global first_interaction
+   
+     global first_interaction, current_topic_number, current_topic
     current_date = datetime.now().strftime("%d_%m_%Y")
     
     try:
