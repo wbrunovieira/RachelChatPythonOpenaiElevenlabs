@@ -1,8 +1,9 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from decouple import config
 import openai
+import uuid
 import json
 from io import BytesIO 
 import random
@@ -26,6 +27,8 @@ current_topic_number = None
 current_topic = None 
 
 app = FastAPI()
+
+transcriptions = {}
 
 def start_timer():
     print('start_timer')
@@ -166,7 +169,7 @@ def stop_class_and_generate_reports(current_topic,current_topic_number, current_
         current_date = datetime.now().strftime("%d_%m_%Y")
         stop_timer_and_log(current_topic_number)
 
-        
+        conversation_data = "" 
         if os.path.exists(conversation_archive_file):
             with open(conversation_archive_file, "r") as archive_file:
                 conversation_data = json.load(archive_file)
@@ -250,7 +253,7 @@ async def reset_conversation():
 async def post_audio(file: UploadFile = File(...)):
    
    
-     global first_interaction, current_topic_number, current_topic
+    global first_interaction, current_topic_number, current_topic
     current_date = datetime.now().strftime("%d_%m_%Y")
     
     try:
@@ -327,7 +330,7 @@ async def post_audio(file: UploadFile = File(...)):
         
         
         return StreamingResponse(BytesIO(audio_content), media_type="audio/mpeg")
-
+        
     except Exception as e:
         print(f"Error processing audio: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -346,17 +349,25 @@ async def post_audio(file: UploadFile = File(...)):
     if not chat_response:
         return HTTPException(status_code=400, detail="Error processing chat response")
   
-    stored_message = store_messages(message_decoded, chat_response)
+    store_messages(message_decoded, chat_response)
   
-    print('stored_message',stored_message)
-  
+      
     audio_output = conver_text_to_speech(chat_response)
     print("Audio output generated.")
   
     if not audio_output:
         return HTTPException(status_code=400, detail="Error converting text to speech")
-  
+    
+    transcription_id = str(uuid.uuid4())  
+    transcriptions[transcription_id] = {
+        "student": message_decoded,
+        "response": chat_response
+    }
     def iterfile():
         yield audio_output
   
-    return StreamingResponse(iterfile(), media_type="audio/mpeg")
+    return StreamingResponse(iterfile(), media_type="audio/mpeg", headers={"X-Transcription-ID": transcription_id})
+
+@app.get("/get-transcriptions/{transcription_id}")
+async def get_transcriptions(transcription_id: str):
+    return JSONResponse(content=transcriptions.get(transcription_id, {}))

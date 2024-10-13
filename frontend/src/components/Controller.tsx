@@ -66,12 +66,16 @@ const Controller = () => {
             console.log("Received response from server:", res);
 
             const responseBlob = res.data;
-            const audio = new Audio();
-            audio.src = createBlobURL(responseBlob);
+            const audioBlob = new Blob([res.data.audio], { type: "audio/mpeg" });
+            const audioUrl = createBlobURL(audioBlob);
+
+            const transcriptionId = res.headers["x-transcription-id"];
 
             const rachelMessage = {
                 sender: "rachel",
-                blobUrl: audio.src,
+                blobUrl: audioUrl,
+                studentTranscription: res.data.student_transcription,  // Adiciona a transcrição do aluno
+                responseTranscription: res.data.response_transcription,  // Adiciona a transcrição do professor
             };
             messagesArr.push(rachelMessage);
             setMessages(messagesArr);
@@ -79,13 +83,32 @@ const Controller = () => {
                 "Rachel's message added to messages array:",
                 messagesArr
             );
+            console.log("Rachel's message added to messages array:", messagesArr);
 
             setIsLoading(false);
+            const audio = new Audio(audioUrl);
             console.log("Playing audio...");
             audio.play();
         } catch (err) {
             console.error("Error occurred:", err);
             setIsLoading(false);
+        }
+    };
+
+    const toggleTranscription = (index: number) => {
+        const updatedMessages = messages.map((msg, idx) =>
+            idx === index ? { ...msg, showTranscription: !msg.showTranscription } : msg
+        );
+        setMessages(updatedMessages);
+    };
+
+    const fetchTranscription = async (transcriptionId: string) => {
+        try {
+            const res = await axios.get(`http://localhost:8000/get-transcriptions/${transcriptionId}`);
+            return res.data; 
+        } catch (err) {
+            console.error("Error fetching transcription:", err);
+            return null; 
         }
     };
 
