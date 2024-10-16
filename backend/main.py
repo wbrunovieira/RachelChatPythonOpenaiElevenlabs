@@ -251,122 +251,72 @@ async def reset_conversation():
 
 @app.post("/post-audio/")
 async def post_audio(file: UploadFile = File(...)):
-   
-   
     global first_interaction, current_topic_number, current_topic
     current_date = datetime.now().strftime("%d_%m_%Y")
     
     try:
         start_timer()
         last_topic_number = get_last_class_topic()
-        print('last_topic_number',last_topic_number)
-        current_topic_number, current_topic = suggest_next_topic(last_topic_number)
-        print('current_topic_number',current_topic_number)
-        print('current_topic',current_topic)
-        print('class_start_time',class_start_time)
-        print('class_duration',class_duration)
-        print('first_interaction',first_interaction)
         
+        current_topic_number, current_topic = suggest_next_topic(last_topic_number)
+      
         audio_input = await file.read()
 
-      
         message_decoded = convert_audio_to_text(audio_input)
         print("Decoded message:", message_decoded)
 
         if not message_decoded:
             raise HTTPException(status_code=400, detail="Error decoding audio")
 
-        recent_messages = get_recent_messages()
-        print("no main recent_messages", recent_messages)
-
         if first_interaction:
-            print("first_interaction e primeira interacao", first_interaction)
             first_message_message = first_message()
             prompt_with_topic = (
-            f"{first_message_message} You are now in a situation where the topic is '{current_topic}'. "
-            f"Begin the conversation naturally with Stephanie based on this topic, and continue with her message: '{message_decoded}'"
-    )
-            print("prompt_with_topic no first", prompt_with_topic)
+                f"{first_message_message} You are now in a situation where the topic is '{current_topic}'. "
+                f"Begin the conversation naturally with Stephanie based on this topic, and continue with her message: '{message_decoded}'"
+            )
             chat_response = get_chat_response(prompt_with_topic)
-            print("first_interaction chat_response", chat_response)
             store_messages(message_decoded, chat_response)
-            print("first_interaction current_topic", current_topic)
-            print("first_interaction prompt_with_topic", prompt_with_topic)
             first_interaction = False  
         else:
             prompt = (
-    f"Continue the conversation based on Stephanie's message: '{message_decoded}'. "
-    "If there is any ambiguity or confusion, gently ask for clarification. "
-    "Focus on keeping the conversation natural and flowing, while ensuring you understood her correctly. "
-    "Ask a follow-up question to keep the dialogue going."
-)
+                f"Continue the conversation based on Stephanie's message: '{message_decoded}'. "
+                "If there is any ambiguity or confusion, gently ask for clarification. "
+                "Focus on keeping the conversation natural and flowing, while ensuring you understood her correctly. "
+                "Ask a follow-up question to keep the dialogue going."
+            )
             chat_response = get_chat_response(prompt)
             store_messages(message_decoded, chat_response)
-            print("chat_response", chat_response)
-            print("chat_response current_topic", current_topic)
-       
 
         if not chat_response:
             raise HTTPException(status_code=400, detail="Error processing chat response")
 
         current_duration = calculate_duration()
 
-        print("current_duration m", current_duration)
-        conversation_archive_file = f"conversation_archive_{current_date}.json"
-
-        # if current_duration >= MAX_READING_TIME and current_duration < MAX_CLASS_DURATION:
-        #     reading_text = generate_reading_text(current_topic)
-        #     store_messages("Reading Text", reading_text)
-        #     return {"message": "Please read the following text aloud:", "text": reading_text}
-        
-        if current_duration >= MAX_CLASS_DURATION:
-            return stop_class_and_generate_reports(current_topic, current_topic_number, current_duration, MAX_CLASS_DURATION, conversation_archive_file)
-
-       
         audio_content = conver_text_to_speech(chat_response)
 
         if not audio_content:
             raise HTTPException(status_code=500, detail="Erro ao converter texto para fala")
+
+        transcription_id = str(uuid.uuid4())  
+        transcriptions[transcription_id] = {
+            "student": message_decoded,
+            "response": chat_response
+        }
+
+        def iterfile():
+            yield audio_content
         
-        
-        return StreamingResponse(BytesIO(audio_content), media_type="audio/mpeg")
-        
+        response = StreamingResponse(iterfile(), media_type="audio/mpeg")
+        response.headers["X-Transcription-ID"] = transcription_id
+        print("transcription_id", transcription_id)
+        print("response.headers", response.headers)
+        return response
+
     except Exception as e:
         print(f"Error processing audio: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-    audio_input  = open("teste.mp3", "rb")
-    message_decoded = convert_audio_to_text(audio_input)
-    print("Decoded message:", message_decoded)
-  
-    if not message_decoded:
-        return HTTPException(status_code=400, detail="Error decoding audio")
-   
-    chat_response = get_chat_response(message_decoded)
-    print("Chat response:", chat_response)
-  
-    if not chat_response:
-        return HTTPException(status_code=400, detail="Error processing chat response")
-  
-    store_messages(message_decoded, chat_response)
-  
-      
-    audio_output = conver_text_to_speech(chat_response)
-    print("Audio output generated.")
-  
-    if not audio_output:
-        return HTTPException(status_code=400, detail="Error converting text to speech")
+ 
     
-    transcription_id = str(uuid.uuid4())  
-    transcriptions[transcription_id] = {
-        "student": message_decoded,
-        "response": chat_response
-    }
-    def iterfile():
-        yield audio_output
-  
-    return StreamingResponse(iterfile(), media_type="audio/mpeg", headers={"X-Transcription-ID": transcription_id})
 
 @app.get("/get-transcriptions/{transcription_id}")
 async def get_transcriptions(transcription_id: str):
