@@ -41,7 +41,12 @@ const Controller = () => {
         console.log("Recording stopped. Blob URL:", blobUrl);
         setIsLoading(true);
 
-        const myMessage = { sender: "me", blobUrl };
+        const myMessage = {
+            sender: "me",
+            blobUrl,
+            showStudentTranscription: false,
+            studentTranscription: "",
+        };
         const messagesArr = [...messages, myMessage];
         setMessages(messagesArr);
         console.log("My message added to messages array:", messagesArr);
@@ -52,16 +57,13 @@ const Controller = () => {
             console.log("Fetched blob from Blob URL:", blob);
 
             const formData = new FormData();
-            formData.append("file", blob, "myFile.wav");
+            formData.append("file", blob, "audio.wav");
             console.log("Form data prepared:", formData);
 
             const fetchResponse = await fetch(
                 "http://localhost:8000/post-audio/",
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "audio/mpeg",
-                    },
                     body: formData,
                 }
             );
@@ -88,6 +90,18 @@ const Controller = () => {
             setAudioUrl(audioUrl);
             setIsAudioReady(true);
 
+            myMessage.studentTranscription =
+                transcriptionData?.student || "No transcription available";
+
+            const updatedMessages = messagesArr.map((msg) =>
+                msg.sender === "me" && msg.blobUrl === blobUrl
+                    ? {
+                          ...msg,
+                          studentTranscription: myMessage.studentTranscription,
+                      }
+                    : msg
+            );
+
             const rachelMessage = {
                 sender: "rachel",
                 blobUrl: audioUrl,
@@ -96,13 +110,15 @@ const Controller = () => {
                     transcriptionData?.student || "No transcription available",
                 responseTranscription:
                     transcriptionData?.response || "No transcription available",
+                showStudentTranscription: false,
+                showTeacherTranscription: false,
             };
 
-            messagesArr.push(rachelMessage);
-            setMessages(messagesArr);
+            updatedMessages.push(rachelMessage);
+            setMessages(updatedMessages);
             console.log(
                 "Rachel's message added to messages array:",
-                messagesArr
+                updatedMessages
             );
 
             setIsLoading(false);
@@ -112,12 +128,23 @@ const Controller = () => {
         }
     };
 
-    const toggleTranscription = (index: number) => {
-        const updatedMessages = messages.map((msg, idx) =>
-            idx === index
-                ? { ...msg, showTranscription: !msg.showTranscription }
-                : msg
-        );
+    const toggleTranscription = (index: number, type: string) => {
+        const updatedMessages = messages.map((msg, idx) => {
+            if (idx === index) {
+                return {
+                    ...msg,
+                    showStudentTranscription:
+                        type === "student"
+                            ? !msg.showStudentTranscription
+                            : msg.showStudentTranscription,
+                    showTeacherTranscription:
+                        type === "teacher"
+                            ? !msg.showTeacherTranscription
+                            : msg.showTeacherTranscription,
+                };
+            }
+            return msg;
+        });
         setMessages(updatedMessages);
     };
 
@@ -166,11 +193,12 @@ const Controller = () => {
                                 key={index + audio.sender}
                                 className={
                                     "flex flex-col " +
-                                    (audio.sender === "rachel" &&
-                                        "flex items-end")
+                                    (audio.sender === "rachel"
+                                        ? "items-end"
+                                        : "")
                                 }
                             >
-                                <div className="mt-4 ">
+                                <div className="mt-4">
                                     <p
                                         className={
                                             audio.sender === "rachel"
@@ -187,18 +215,54 @@ const Controller = () => {
                                         controls
                                     />
 
-                                    {/* Exibir as transcrições se existirem */}
-                                    {audio.studentTranscription && (
-                                        <p className="mt-2 text-sm text-gray-500">
-                                            <strong>Student:</strong>{" "}
-                                            {audio.studentTranscription}
-                                        </p>
+                                    {audio.sender === "me" && (
+                                        <>
+                                            <button
+                                                onClick={() =>
+                                                    toggleTranscription(
+                                                        index,
+                                                        "student"
+                                                    )
+                                                }
+                                                className="text-blue-500 mt-2 underline"
+                                            >
+                                                {audio.showStudentTranscription
+                                                    ? "Hide Student Transcription"
+                                                    : "Show Student Transcription"}
+                                            </button>
+                                            {audio.showStudentTranscription && (
+                                                <p className="mt-2 text-sm text-gray-500 w-96">
+                                                    <strong>Student:</strong>{" "}
+                                                    {audio.studentTranscription}
+                                                </p>
+                                            )}
+                                        </>
                                     )}
-                                    {audio.responseTranscription && (
-                                        <p className="mt-2 text-sm text-gray-500">
-                                            <strong>Response:</strong>{" "}
-                                            {audio.responseTranscription}
-                                        </p>
+
+                                    {audio.sender === "rachel" && (
+                                        <>
+                                            <button
+                                                onClick={() =>
+                                                    toggleTranscription(
+                                                        index,
+                                                        "teacher"
+                                                    )
+                                                }
+                                                className="text-green-500 mt-2 underline"
+                                            >
+                                                {audio.showTeacherTranscription
+                                                    ? "Hide Teacher Transcription"
+                                                    : "Show Teacher Transcription"}
+                                            </button>
+                                            {audio.showTeacherTranscription && (
+                                                <p className="mt-2 text-sm text-gray-500 w-96">
+                                                    <strong>Teacher:</strong>{" "}
+                                                    {
+                                                        audio.responseTranscription
+                                                    }
+                                                </p>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>

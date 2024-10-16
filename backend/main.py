@@ -15,6 +15,8 @@ from functions.openai_requests import convert_audio_to_text, get_chat_response,g
 from functions.database import store_messages, reset_messages,get_recent_messages,first_message
 from functions.text_to_speech import conver_text_to_speech
 
+
+
 openai.organization = config("OPEN_AI_ORG")
 openai.api_key = config("OPEN_AI_KEY")
 
@@ -223,14 +225,21 @@ def stop_class_and_generate_reports(current_topic,current_topic_number, current_
         print("current_duration m", current_duration)
         return StreamingResponse(combined_audio, media_type="audio/mpeg")
     
-origins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:4173",
-    "http://localhost:3000",
-]
 
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:4173",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Transcription-ID"],  
+)
 
 @app.get("/current-topic")
 async def get_current_topic():
