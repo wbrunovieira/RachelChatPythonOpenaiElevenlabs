@@ -11,6 +11,8 @@ import os
 import time
 from datetime import datetime
 
+from pydantic import BaseModel
+
 from functions.openai_requests import convert_audio_to_text, get_chat_response,get_chat_response_extended
 from functions.database import store_messages, reset_messages,get_recent_messages,first_message
 from functions.text_to_speech import conver_text_to_speech
@@ -31,6 +33,9 @@ current_topic = None
 app = FastAPI()
 
 transcriptions = {}
+
+class StartClassRequest(BaseModel):
+    duration: int
 
 def start_timer():
     print('start_timer')
@@ -241,13 +246,46 @@ app.add_middleware(
     expose_headers=["X-Transcription-ID"],  
 )
 
+@app.post("/start-class")
+async def start_class(data: dict):
+    start_time = data.get("start_time")
+    duration = data.get("duration")
+
+    if not start_time or not duration:
+        raise HTTPException(status_code=400, detail="Invalid data")
+
+    global class_start_time, class_duration
+    class_start_time = start_time
+    class_duration = duration * 60  
+
+    return {"message": "Class started", "class_start_time": class_start_time}
+
+@app.get("/get-class-info")
+async def get_class_info():
+    """
+    Retorna as informações da aula.
+    """
+    global class_start_time, class_duration, current_topic, current_topic_number
+
+    return {
+        "current_topic": current_topic,
+        "current_topic_number": current_topic_number,
+        "class_start_time": class_start_time,
+        "class_duration": class_duration
+    }
+
+
 @app.get("/current-topic")
 async def get_current_topic():
     global current_topic_number, current_topic
+
     if current_topic is None:
         
         last_topic_number = get_last_class_topic()
         current_topic_number, current_topic = suggest_next_topic(last_topic_number)
+
+   
+
     return {"current_topic": current_topic}
 
 @app.get("/reset")

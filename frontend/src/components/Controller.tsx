@@ -3,13 +3,28 @@ import axios from "axios";
 import Title from "./Title";
 import RecordMessage from "./RecordMessage";
 
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
+
 const Controller = () => {
+    const MAX_CLASS_DURATION = 10 * 60;
+    const MIN_CLASS_DURATION = 10;
+
     const [isLoading, setIsLoading] = useState(false);
+
     const [messages, setMessages] = useState<any[]>([]);
     const [currentTopic, setCurrentTopic] = useState<string>("");
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [isAudioReady, setIsAudioReady] = useState<boolean>(false);
     const [transcriptions, setTranscriptions] = useState<any>({});
+    const [classStartTime, setClassStartTime] = useState<number | null>(null);
+    const [elapsedTime, setElapsedTime] = useState<number>(0);
+    const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
+    const [classDuration, setClassDuration] =
+        useState<number>(MIN_CLASS_DURATION);
+
+    // Duração da aula
+    const [isClassStarted, setIsClassStarted] = useState<boolean>(false);
 
     const [textToDisplay, setTextToDisplay] = useState<string | null>(null);
 
@@ -21,6 +36,8 @@ const Controller = () => {
                 );
                 console.log("Current topic:", res.data.current_topic);
                 setCurrentTopic(res.data.current_topic);
+                setClassStartTime(res.data.class_start_time);
+                setClassDuration(res.data.class_duration / 60);
             } catch (err) {
                 console.error("Error fetching current topic:", err);
             }
@@ -28,6 +45,71 @@ const Controller = () => {
 
         fetchCurrentTopic();
     }, []);
+
+    useEffect(() => {
+        let timer: ReturnType<typeof setInterval>;
+
+        if (isClassStarted && classStartTime) {
+            timer = setInterval(() => {
+                const now = Date.now() / 1000;
+                const elapsed = now - classStartTime;
+                setElapsedTime(Math.max(elapsed, 0));
+
+                if (elapsed >= classDuration * 60) {
+                    clearInterval(timer);
+                    setIsClassStarted(false);
+                    setAudioEnabled(false);
+                    alert("Class ended! Great job!");
+                }
+            }, 1000);
+        }
+
+        return () => clearInterval(timer);
+    }, [isClassStarted, classStartTime, classDuration]);
+
+    const startClass = async () => {
+        const now = Date.now() / 1000;
+        setClassStartTime(now);
+        setIsClassStarted(true);
+        setAudioEnabled(true);
+
+        try {
+            await axios.post(
+                "http://localhost:8000/start-class",
+                {
+                    start_time: now,
+                    duration: classDuration,
+                },
+                {
+                    headers: { "Content-Type": "application/json" },
+                }
+            );
+        } catch (err) {
+            console.error("Error starting class:", err);
+        }
+    };
+
+    const calculateProgress = () => {
+        if (!classStartTime || !classDuration || elapsedTime <= 0) return 0;
+        return Math.min((elapsedTime / (classDuration * 60)) * 100, 100);
+    };
+
+    const formatTime = (timeInSeconds: number) => {
+        if (isNaN(timeInSeconds) || timeInSeconds < 0) return "00:00";
+        const minutes = Math.floor(timeInSeconds / 60);
+        const seconds = Math.floor(timeInSeconds % 60);
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+            2,
+            "0"
+        )}`;
+    };
+
+    const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value) && value >= MIN_CLASS_DURATION) {
+            setClassDuration(value);
+        }
+    };
 
     function createBlobURL(data: any) {
         console.log("Creating blob URL...");
@@ -39,6 +121,7 @@ const Controller = () => {
 
     const handleStop = async (blobUrl: string) => {
         console.log("Recording stopped. Blob URL:", blobUrl);
+        if (!audioEnabled) return;
         setIsLoading(true);
 
         const myMessage = {
@@ -179,11 +262,53 @@ const Controller = () => {
         <div className="h-screen overflow-y-hidden">
             <Title setMessages={setMessages} />
 
-            {currentTopic && (
-                <div className="text-center font-bold text-xl mt-4">
-                    Current Topic: {currentTopic}
+            <div className="text-center font-bold text-xl mt-4">
+                {currentTopic
+                    ? `Current Topic: ${currentTopic}`
+                    : "No topic set yet"}
+            </div>
+
+            <div className="flex justify-center items-center mt-6">
+                <div style={{ width: 100, height: 100 }}>
+                    <CircularProgressbar
+                        value={calculateProgress()}
+                        text={
+                            isClassStarted
+                                ? formatTime(classDuration * 60 - elapsedTime)
+                                : formatTime(classDuration * 60)
+                        }
+                        styles={buildStyles({
+                            textColor: "#000",
+                            pathColor: "#4caf50",
+                            trailColor: "#d6d6d6",
+                        })}
+                    />
                 </div>
-            )}
+            </div>
+
+            <div className="text-center mt-4">
+                {!isClassStarted && (
+                    <label>
+                        Set Class Duration (minutes):
+                        <input
+                            type="number"
+                            value={classDuration || MIN_CLASS_DURATION}
+                            onChange={handleDurationChange}
+                            min={MIN_CLASS_DURATION}
+                            className="ml-2 border p-1"
+                        />
+                    </label>
+                )}
+
+                {!isClassStarted && (
+                    <button
+                        onClick={startClass}
+                        className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+                    >
+                        Start Class
+                    </button>
+                )}
+            </div>
 
             <div className="flex flex-col justify-between h-full overflow-y-scroll pb-96">
                 <div className="mt-5 px-5">
@@ -198,7 +323,7 @@ const Controller = () => {
                                         : "")
                                 }
                             >
-                                <div className="mt-4">
+                                <div className="mt-4 pb-8">
                                     <p
                                         className={
                                             audio.sender === "rachel"
@@ -238,7 +363,6 @@ const Controller = () => {
                                             )}
                                         </>
                                     )}
-
                                     {audio.sender === "rachel" && (
                                         <>
                                             <button
@@ -268,7 +392,6 @@ const Controller = () => {
                             </div>
                         );
                     })}
-
                     {messages.length === 0 && !isLoading && (
                         <div className="text-center font-light italic mt-10">
                             Send Rachel a message...
@@ -282,11 +405,11 @@ const Controller = () => {
                     )}
                 </div>
 
-                <div className="fixed bottom-0 w-full py-6 border-t text-center bg-gradient-to-r from-customPurple1 to-customPurple2">
-                    <div className="flex justify-center items-center w-full">
-                        <div className="duration-300 text-customYellow hover:scale-105">
+                <div className="fixed bottom-0 w-full py-6 bg-gradient-to-r from-customPurple1 to-customPurple2">
+                    <div className="flex justify-center items-center">
+                        {audioEnabled && (
                             <RecordMessage handleStop={handleStop} />
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
